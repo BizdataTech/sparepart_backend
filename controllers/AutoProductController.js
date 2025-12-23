@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import AutoProduct from "../models/autoProductModel.js";
 import cloudinary from "../utils/cloudinary.js";
+import getFilterQuery from "../utils/getFilterQuery.js";
 
 export const createProduct = async (req, res) => {
   try {
@@ -35,7 +36,7 @@ export const createProduct = async (req, res) => {
 
 export const getProducts = async (req, res) => {
   try {
-    let { filter, current_page, category } = req.query;
+    let { filter, current_page, category, query } = req.query;
     let products = [];
     switch (filter) {
       case "admin-products":
@@ -49,7 +50,7 @@ export const getProducts = async (req, res) => {
           total_pages: Math.ceil(total_products / limit),
         });
       case "products":
-        let { query, type } = req.query;
+        let { type } = req.query;
         let match = {};
 
         if (type === "genuine") {
@@ -112,12 +113,19 @@ export const getProducts = async (req, res) => {
           "brand"
         );
         return res.json({ products });
-      case "product-page":
-        let { genuine_reference } = req.query;
-        products = await AutoProduct.find({ genuine_reference });
-        return res.json({ products });
-      case "category":
-        let { category: slug } = req.query;
+
+      case "search":
+        let words = query.split(/\s+/).filter(Boolean);
+        let search_condition = words.map((w) => ({
+          $or: [
+            { product_title: { $regex: w, $options: "i" } },
+            { "brand.brand_name": { $regex: w, $options: "i" } },
+            { "category.title": { $regex: w, $options: "i" } },
+            { part_number: { $regex: w, $options: "i" } },
+            { "fitments.make": { $regex: w, $options: "i" } },
+            { "fitments.model": { $regex: w, $options: "i" } },
+          ],
+        }));
         products = await AutoProduct.aggregate([
           {
             $lookup: {
@@ -127,6 +135,7 @@ export const getProducts = async (req, res) => {
               as: "category",
             },
           },
+          { $unwind: "$category" },
           {
             $lookup: {
               from: "brands",
@@ -135,6 +144,7 @@ export const getProducts = async (req, res) => {
               as: "brand",
             },
           },
+          { $unwind: "$brand" },
           {
             $lookup: {
               from: "vehicles",
@@ -143,13 +153,59 @@ export const getProducts = async (req, res) => {
               as: "fitments",
             },
           },
+          { $match: { $and: search_condition } },
+          {
+            $project: {
+              product_title: 1,
+              _id: 1,
+              brand: "$brand.brand_name",
+            },
+          },
+        ]);
+        return res.json({ products });
+      case "product-page":
+        let { genuine_reference } = req.query;
+        products = await AutoProduct.find({ genuine_reference });
+        return res.json({ products });
+      case "category":
+        let { category: slug } = req.query;
+
+        console.log("query:", req.query);
+
+        let filter_query = getFilterQuery(req.query);
+
+        products = await AutoProduct.aggregate([
+          {
+            $lookup: {
+              from: "autocategories",
+              localField: "category",
+              foreignField: "_id",
+              as: "category",
+            },
+          },
           { $unwind: "$category" },
-          { $unwind: "$brand" },
-          { $unwind: "$fitments" },
           { $match: { "category.slug": slug } },
+          {
+            $lookup: {
+              from: "brands",
+              localField: "brand",
+              foreignField: "_id",
+              as: "brand",
+            },
+          },
+          { $unwind: "$brand" },
+          {
+            $lookup: {
+              from: "vehicles",
+              localField: "fitments",
+              foreignField: "_id",
+              as: "fitments",
+            },
+          },
           {
             $facet: {
               category_products: [
+                { $match: filter_query },
                 {
                   $project: {
                     product_title: 1,
@@ -174,8 +230,10 @@ export const getProducts = async (req, res) => {
                     count: 1,
                   },
                 },
+                { $sort: { title: 1 } },
               ],
               make: [
+                { $unwind: "$fitments" },
                 {
                   $group: {
                     _id: "$fitments.make",
@@ -189,8 +247,10 @@ export const getProducts = async (req, res) => {
                     _id: 0,
                   },
                 },
+                { $sort: { title: 1 } },
               ],
               model: [
+                { $unwind: "$fitments" },
                 {
                   $group: {
                     _id: "$fitments.model",
@@ -204,8 +264,10 @@ export const getProducts = async (req, res) => {
                     _id: 0,
                   },
                 },
+                { $sort: { title: 1 } },
               ],
               engine: [
+                { $unwind: "$fitments" },
                 {
                   $group: {
                     _id: "$fitments.engine",
@@ -219,6 +281,7 @@ export const getProducts = async (req, res) => {
                     _id: 0,
                   },
                 },
+                { $sort: { title: 1 } },
               ],
             },
           },
