@@ -17,7 +17,7 @@ import path from "path";
 
 const app = express();
 const allowedURLs = [
-  "https://ecom-prototype-one.vercel.app",
+  "https://sparepart-frontend-ten.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
