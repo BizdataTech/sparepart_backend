@@ -13,6 +13,7 @@ import {
   getWishlistProducts,
   removeFromWishlist,
   getData,
+  getUserAddress,
 } from "../controllers/userController.js";
 import verifyUser from "../middlewares/authentication2.js";
 
@@ -25,6 +26,7 @@ router.post("/auth/sign-in", signinUser);
 router.post("/auth/logout", logoutUser);
 
 router.post("/users/address", verifyUser, addAddress);
+router.get("/users/address", verifyUser, getUserAddress);
 router.get("/users/address/:id", verifyUser, getAddress);
 router.patch("/users/address/:id", verifyUser, updateAddress);
 router.delete("/users/address/:id", verifyUser, deleteAddress);

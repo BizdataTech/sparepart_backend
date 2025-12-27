@@ -110,6 +110,16 @@ export const addAddress = async (req, res) => {
   }
 };
 
+export const getUserAddress = async (req, res) => {
+  try {
+    let user = await User.findOne({ _id: req.userId }).select("addresses -_id");
+    return res.json({ addresses: user.addresses });
+  } catch (error) {
+    console.log("Failed to fetch user address:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 export const getAddress = async (req, res) => {
   try {
     let address = await User.findOne(
