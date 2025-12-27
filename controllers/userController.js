@@ -164,6 +164,121 @@ export const deleteAddress = async (req, res) => {
   }
 };
 
+// wishlist
+export const getWishlistProducts = async (req, res) => {
+  try {
+    let user_wishlist = await User.findById(req.userId, { wishlist: 1 });
+    console.log("user wishlist:", user_wishlist);
+    if (!user_wishlist || user_wishlist.wishlist.length === 0)
+      return res.json({ products: [] });
+    let products = await User.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(req.userId) } },
+      { $unwind: "$wishlist" },
+      {
+        $lookup: {
+          from: "autoproducts",
+          localField: "wishlist.productId",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      {
+        $project: {
+          _id: 1,
+          "wishlist.addedAt": 1,
+          "product._id": 1,
+          "product.product_title": 1,
+          "product.brand": 1,
+          "product.price": 1,
+          "product.images": 1,
+        },
+      },
+      {
+        $lookup: {
+          from: "brands",
+          localField: "product.brand",
+          foreignField: "_id",
+          as: "brand",
+        },
+      },
+      { $unwind: "$brand" },
+      {
+        $addFields: {
+          "product.brand": "$brand",
+        },
+      },
+      { $sort: { "wishlist.addedAt": 1 } },
+      {
+        $group: {
+          _id: "$_id",
+          wishlist: {
+            $push: "$product",
+          },
+        },
+      },
+    ]);
+    console.log("wishlist products:", products[0].wishlist);
+    return res.json({ products: products[0].wishlist });
+  } catch (error) {
+    console.log("failed to fetch wishlist products:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const getData = async (req, res) => {
+  try {
+    let { id } = req.params;
+    let matching_product = await User.findOne({
+      _id: req.userId,
+      "wishlist.productId": id,
+    });
+    if (matching_product) return res.json({ result: true });
+    return res.json({ result: false });
+  } catch (error) {
+    console.log("failed to fetch product wishlist data.", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const addToWishlist = async (req, res) => {
+  try {
+    let { productId } = req.body;
+    let matching_product = await User.findOne({
+      _id: req.userId,
+      "wishlist.productId": { $in: [productId] },
+    });
+    if (matching_product)
+      return res
+        .status(409)
+        .json({ message: "Failed : Product already exist in wishlist" });
+    console.log(matching_product ? true : false);
+    await User.updateOne(
+      { _id: req.userId },
+      { $addToSet: { wishlist: { productId, addedAt: new Date() } } }
+    );
+    return res.json({ message: "product added to wishlist" });
+  } catch (error) {
+    console.log("failed to add product in wishlist:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const removeFromWishlist = async (req, res) => {
+  try {
+    let { productId } = req.params;
+    console.log("productId:", productId);
+    await User.updateOne(
+      { _id: req.userId },
+      { $pull: { wishlist: { productId } } }
+    );
+    return res.json({ message: "product removed from db" });
+  } catch (error) {
+    console.log("failed to remover product from wishlist", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // logout user
 export const logoutUser = async (req, res) => {
   res.clearCookie("token", {

@@ -9,6 +9,10 @@ import {
   updateAddress,
   getAddress,
   addAddress,
+  addToWishlist,
+  getWishlistProducts,
+  removeFromWishlist,
+  getData,
 } from "../controllers/userController.js";
 import verifyUser from "../middlewares/authentication2.js";
 
@@ -24,5 +28,10 @@ router.post("/users/address", verifyUser, addAddress);
 router.get("/users/address/:id", verifyUser, getAddress);
 router.patch("/users/address/:id", verifyUser, updateAddress);
 router.delete("/users/address/:id", verifyUser, deleteAddress);
+
+router.get("/users/wishlist/product/:id", verifyUser, getData);
+router.post("/users/wishlist", verifyUser, addToWishlist);
+router.get("/users/wishlist", verifyUser, getWishlistProducts);
+router.delete("/users/wishlist/:productId", verifyUser, removeFromWishlist);
 
 export default router;

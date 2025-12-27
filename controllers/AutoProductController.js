@@ -324,6 +324,7 @@ export const getProduct = async (req, res) => {
               images: 1,
               product_title: 1,
               product_type: 1,
+              price: 1,
               "brand.brand_name": 1,
             },
           },

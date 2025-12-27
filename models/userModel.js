@@ -10,6 +10,9 @@ const UserSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
+    wishlist: [
+      { productId: { type: mongoose.Schema.Types.ObjectId }, addedAt: Date },
+    ],
     addresses: [
       {
         address: String,
