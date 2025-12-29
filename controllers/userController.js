@@ -111,9 +111,39 @@ export const addAddress = async (req, res) => {
 };
 
 export const getUserAddress = async (req, res) => {
+  let { type } = req.query;
   try {
-    let user = await User.findOne({ _id: req.userId }).select("addresses -_id");
-    return res.json({ addresses: user.addresses });
+    switch (type) {
+      case "all":
+        let { addresses } = await User.findOne({ _id: req.userId }).select(
+          "addresses -_id"
+        );
+        return res.json({ addresses });
+      case "default":
+        let address = await User.aggregate([
+          { $match: { _id: new mongoose.Types.ObjectId(req.userId) } },
+          {
+            $addFields: {
+              address: {
+                $filter: {
+                  input: "$addresses",
+                  as: "address",
+                  cond: { $eq: ["$$address.default", true] },
+                },
+              },
+            },
+          },
+          {
+            $project: {
+              address: 1,
+            },
+          },
+          { $unwind: "$address" },
+        ]);
+        return res.json({ address: address[0].address });
+      default:
+        return;
+    }
   } catch (error) {
     console.log("Failed to fetch user address:", error.message);
     return res.status(500).json({ message: error.message });
