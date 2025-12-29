@@ -14,16 +14,21 @@ import {
   removeFromWishlist,
   getData,
   getUserAddress,
+  updateUsername,
+  updateUserEmail,
 } from "../controllers/userController.js";
 import verifyUser from "../middlewares/authentication2.js";
 
 const router = express.Router();
 
 router.get("/auth/verify/me", verifyUser, verifyState);
-router.get("/auth/user/:id", getUser);
+router.get("/auth/user", verifyUser, getUser);
 router.post("/auth/register", signup);
 router.post("/auth/sign-in", signinUser);
 router.post("/auth/logout", logoutUser);
+
+router.patch("/users/username", verifyUser, updateUsername);
+router.patch("/users/email", verifyUser, updateUserEmail);
 
 router.post("/users/address", verifyUser, addAddress);
 router.get("/users/address", verifyUser, getUserAddress);

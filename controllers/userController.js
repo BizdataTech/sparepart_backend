@@ -30,8 +30,7 @@ export const verifyState = async (req, res) => {
 
 export const getUser = async (req, res) => {
   try {
-    let { id } = req.params;
-    let user = await getUserData(id);
+    let user = await getUserData(req.userId);
     console.log("user fetch data:", user);
     res.json({ user });
   } catch (error) {
@@ -45,7 +44,7 @@ export const signup = async (req, res) => {
   try {
     let matchingUser = await User.findOne({ email });
     if (matchingUser) {
-      return res.status(400).json({ message: "Email already taken" });
+      return res.status(409).json({ message: "Email already taken" });
     }
     const hashedPasword = await bcrypt.hash(password, 10);
     const new_user = await User.create({
@@ -96,6 +95,33 @@ export const signinUser = async (req, res) => {
   } catch (error) {
     console.error("error:", error.message);
     res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateUsername = async (req, res) => {
+  try {
+    let { username } = req.body;
+    if (!username.trim().length)
+      return res.status(400).json({ message: "Username cannot be empty" });
+    await User.updateOne({ _id: req.userId }, { $set: { username } });
+    res.json({ message: "Username updated" });
+  } catch (error) {
+    console.log("failed to update the username:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateUserEmail = async (req, res) => {
+  try {
+    let { email } = req.body;
+    let matching_email = await User.findOne({ email });
+    if (matching_email)
+      return res.status(409).json({ message: "Email already taken" });
+    await User.updateOne({ _id: req.userId }, { $set: { email } });
+    return res.json({ message: "User email updated" });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({ message: error.message });
   }
 };
 
