@@ -12,7 +12,7 @@ import cartRouter from "./routers/cartRouter.js";
 import brandRouter from "./routers/brandRouter.js";
 import makeRouter from "./routers/makeRouter.js";
 import productSectionRouter from "./routers/productSectionRouter.js";
-import Sample from "./sampleCreation.js";
+import orderRouter from "./routers/orderRouter.js";
 import path from "path";
 
 const app = express();
@@ -52,6 +52,7 @@ app.use("/api", autoCategoryRouter);
 app.use("/api", autoVehicleRouter);
 app.use("/api", searchRouter);
 app.use("/api", cartRouter);
+app.use("/api", orderRouter);
 app.use("/api", brandRouter);
 app.use("/api", makeRouter);
 app.use("/api", productSectionRouter);
