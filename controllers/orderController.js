@@ -116,6 +116,11 @@ export const getAllOrders = async (req, res) => {
         },
       },
       {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+      {
         $project: {
           _id: 1,
           orderStatus: 1,
@@ -129,7 +134,6 @@ export const getAllOrders = async (req, res) => {
         },
       },
     ]);
-    console.log("orders:", orders);
     return res.json({ orders });
   } catch (error) {
     console.log("failed to fetch orders:", error.message);
