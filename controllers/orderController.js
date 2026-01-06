@@ -92,9 +92,80 @@ export const createOrder = async (req, res) => {
       { userId: req.userId },
       { $set: { items: [], cartTotal: 0 } }
     );
-    return res.json({ message: "order placed" });
+    return res.json({ message: "order placed", orderId: new_order._id });
   } catch (error) {
     console.log("Failed to create order:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const getAllOrders = async (req, res) => {
+  try {
+    let orders = await Order.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(req.userId),
+        },
+      },
+      {
+        $lookup: {
+          from: "autoproducts",
+          localField: "items.productId",
+          foreignField: "_id",
+          as: "products",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          orderStatus: 1,
+          orderNumber: 1,
+          totalAmount: 1,
+          "products._id": 1,
+          "products.product_title": 1,
+          "products.price": 1,
+          "products.images": 1,
+          "products.part_number": 1,
+        },
+      },
+    ]);
+    console.log("orders:", orders);
+    return res.json({ orders });
+  } catch (error) {
+    console.log("failed to fetch orders:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const getOrderData = async (req, res) => {
+  try {
+    let { id } = req.params;
+    let data = await Order.aggregate([
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(id),
+          userId: new mongoose.Types.ObjectId(req.userId),
+        },
+      },
+      {
+        $lookup: {
+          from: "autoproducts",
+          localField: "items.productId",
+          foreignField: "_id",
+          as: "products",
+        },
+      },
+      {
+        $project: {
+          userId: 0,
+        },
+      },
+    ]);
+    if (data.paymentStatus === "failed")
+      return res.json({ ...data, success: false, message: "Payment Failed" });
+    return res.json({ data: data[0] });
+  } catch (error) {
+    console.log("failed to fetch the order data:", error.message);
     return res.status(500).json({ message: error.message });
   }
 };
