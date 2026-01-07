@@ -1,5 +1,20 @@
 import mongoose from "mongoose";
 
+const AddressSchema = new mongoose.Schema(
+  {
+    address: String,
+    house_number: Number,
+    street: String,
+    city: String,
+    district: String,
+    state: String,
+    pincode: Number,
+    phone_number: Number,
+    default: { type: Boolean, default: false },
+  },
+  { _id: true }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     username: { type: String, required: true },
@@ -13,19 +28,7 @@ const UserSchema = new mongoose.Schema(
     wishlist: [
       { productId: { type: mongoose.Schema.Types.ObjectId }, addedAt: Date },
     ],
-    addresses: [
-      {
-        address: String,
-        house_number: Number,
-        street: String,
-        city: String,
-        district: String,
-        state: String,
-        pincode: Number,
-        phone_number: Number,
-        default: { type: Boolean, default: false },
-      },
-    ],
+    addresses: [AddressSchema],
     blocked: { type: Boolean, default: false },
   },
   { timestamps: true }

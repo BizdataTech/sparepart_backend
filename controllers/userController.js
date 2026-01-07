@@ -127,9 +127,26 @@ export const updateUserEmail = async (req, res) => {
 
 export const addAddress = async (req, res) => {
   try {
-    let result = await User.findByIdAndUpdate(req.userId, {
-      $push: { addresses: req.body },
-    });
+    let result = await User.findByIdAndUpdate(req.userId, [
+      {
+        $set: {
+          addresses: {
+            $concatArrays: [
+              "$addresses",
+              [
+                {
+                  _id: new mongoose.Types.ObjectId(),
+                  ...req.body,
+                  default: {
+                    $cond: [{ $eq: [{ $size: "$addresses" }, 0] }, true, false],
+                  },
+                },
+              ],
+            ],
+          },
+        },
+      },
+    ]);
     return res.json({ message: "user updated with address" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -166,7 +183,7 @@ export const getUserAddress = async (req, res) => {
           },
           { $unwind: "$address" },
         ]);
-        return res.json({ address: address[0].address });
+        return res.json({ address: address[0]?.address });
       default:
         return;
     }
