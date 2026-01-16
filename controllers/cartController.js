@@ -1,6 +1,7 @@
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import AutoProduct from "../models/autoProductModel.js";
 import Cart from "../models/cartModel.js";
+import StockReservaton from "../models/reservationModel.js";
 
 export const getData = async (req, res) => {
   try {
@@ -25,9 +26,37 @@ export const getCart = async (req, res) => {
         path: "brand",
       },
     });
-    res.json({ cart });
+
+    let items = await Promise.all(
+      cart.items.map(async (item) => {
+        let newItem = item.toObject();
+        let reserved_product_data = await StockReservaton.aggregate([
+          {
+            $match: {
+              productId: new mongoose.Types.ObjectId(item.productId._id),
+              reservedStatus: "active",
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              count: { $sum: "$reservedStock" },
+            },
+          },
+        ]);
+        let available_product_stock =
+          item.productId.stock - (reserved_product_data[0]?.count || 0);
+
+        if (available_product_stock <= 6)
+          newItem.available_stock = available_product_stock;
+        else newItem.available_stock = 6;
+        return newItem;
+      })
+    );
+    console.log("items:", items);
+    return res.json({ cart: { items, cartTotal: cart.cartTotal } });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 

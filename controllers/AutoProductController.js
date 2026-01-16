@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import AutoProduct from "../models/autoProductModel.js";
 import cloudinary from "../utils/cloudinary.js";
 import getFilterQuery from "../utils/getFilterQuery.js";
+import StockReservaton from "../models/reservationModel.js";
 
 export const createProduct = async (req, res) => {
   try {
@@ -333,15 +334,74 @@ export const getProduct = async (req, res) => {
       case "all-product":
         return;
       case "stock":
-        let product_stock = await AutoProduct.findById(req.params.id).select(
-          "stock -_id"
-        );
-        return res.json({ product_stock });
+        product = await AutoProduct.findById(id).select("stock -_id");
+        let product_reservation_details = await StockReservaton.aggregate([
+          {
+            $match: {
+              productId: new mongoose.Types.ObjectId(id),
+              reservedStatus: "active",
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              count: { $sum: "$reservedStock" },
+            },
+          },
+        ]);
+
+        let stock =
+          product.stock - (product_reservation_details[0]?.count || 0);
+
+        return res.json({ stock });
       default:
-        product = await AutoProduct.findOne({ _id: id })
-          .populate("brand")
-          .populate("category");
-        res.json({ product });
+        product = await AutoProduct.aggregate([
+          { $match: { _id: new mongoose.Types.ObjectId(id) } },
+          {
+            $lookup: {
+              from: "autocategories",
+              localField: "category",
+              foreignField: "_id",
+              as: "category",
+            },
+          },
+          {
+            $unwind: "$category",
+          },
+          {
+            $lookup: {
+              from: "brands",
+              localField: "brand",
+              foreignField: "_id",
+              as: "brand",
+            },
+          },
+          {
+            $unwind: "$brand",
+          },
+        ]);
+
+        let reserved_stock_details = await StockReservaton.aggregate([
+          {
+            $match: {
+              productId: new mongoose.Types.ObjectId(id),
+              reservedStatus: "active",
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              count: { $sum: "$reservedStock" },
+            },
+          },
+        ]);
+
+        const available_stock =
+          product[0].stock - (reserved_stock_details[0]?.count || 0);
+
+        let product_data = { ...product[0], available_stock };
+
+        res.json({ product: product_data });
         break;
     }
   } catch (error) {

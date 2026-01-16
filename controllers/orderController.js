@@ -3,6 +3,7 @@ import Cart from "../models/cartModel.js";
 import Order from "../models/orderModel.js";
 import User from "../models/userModel.js";
 import getOrderNumber from "../utils/getOrderNumber.js";
+import StockReservaton from "../models/reservationModel.js";
 import AutoProduct from "../models/autoProductModel.js";
 
 export const createOrder = async (req, res) => {
@@ -59,7 +60,6 @@ export const createOrder = async (req, res) => {
     ]);
 
     deliveryAddress = deliveryAddress[0].address;
-    console.log("address:", deliveryAddress);
 
     if (!deliveryAddress)
       return res
@@ -85,8 +85,19 @@ export const createOrder = async (req, res) => {
       deliveryAddress,
       paymentMethod,
       paymentStatus,
+      orderStatusHistory: [{ status: "placed" }],
       orderNumber,
     });
+
+    await Promise.all(
+      cart.items.map((item) => {
+        return StockReservaton.create({
+          orderId: new_order._id,
+          productId: item.productId,
+          reservedStock: item.quantity,
+        });
+      })
+    );
 
     await Cart.updateOne(
       { userId: req.userId },
@@ -95,6 +106,44 @@ export const createOrder = async (req, res) => {
     return res.json({ message: "order placed", orderId: new_order._id });
   } catch (error) {
     console.log("Failed to create order:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const getAllClientOrders = async (req, res) => {
+  try {
+    let orders = await Order.aggregate([
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      {
+        $project: {
+          user: "$user.username",
+          items: { $size: "$items" },
+          totalAmount: 1,
+          paymentMethod: 1,
+          paymentStatus: 1,
+          currentOrderStatus: 1,
+          orderNumber: 1,
+          createdAt: 1,
+        },
+      },
+
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+    ]);
+    return res.json({ data: orders });
+  } catch (error) {
+    console.log("failed to get all client orders -", error.message);
     return res.status(500).json({ message: error.message });
   }
 };
@@ -123,7 +172,7 @@ export const getAllOrders = async (req, res) => {
       {
         $project: {
           _id: 1,
-          orderStatus: 1,
+          currentOrderStatus: 1,
           orderNumber: 1,
           totalAmount: 1,
           "products._id": 1,
@@ -170,6 +219,73 @@ export const getOrderData = async (req, res) => {
     return res.json({ data: data[0] });
   } catch (error) {
     console.log("failed to fetch the order data:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const getClientOrderDetails = async (req, res) => {
+  try {
+    let { id } = req.params;
+    let data = await Order.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $lookup: {
+          from: "autoproducts",
+          localField: "items.productId",
+          foreignField: "_id",
+          as: "products",
+        },
+      },
+      {
+        $addFields: {
+          user: "$user.username",
+        },
+      },
+    ]);
+    return res.json({ data: data[0] });
+  } catch (error) {
+    console.log("fetching orders failed:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// status updates
+export const confirmOrder = async (req, res) => {
+  try {
+    let { id: orderId } = req.params;
+    let order = await Order.findById(orderId);
+    let reservations = await StockReservaton.find({ orderId });
+    if (
+      order.currentOrderStatus === "placed" &&
+      reservations.every((item) => item.reservedStatus === "active")
+    ) {
+      await Promise.all(
+        reservations.map(async (item) => {
+          await AutoProduct.updateOne(
+            { _id: item.productId, stock: { $gte: item.reservedStock } },
+            { $inc: { stock: -item.reservedStock } }
+          );
+        })
+      );
+      await StockReservaton.deleteMany({ orderId });
+      order.currentOrderStatus = "confirmed";
+      order.orderStatusHistory.push({ status: "confirmed" });
+
+      await order.save();
+
+      return res.json({ message: "order updated" });
+    }
+    return res.status(400).json({ message: "Order Confirmation Failed" });
+  } catch (error) {
+    console.log("failed to update confirm order:", error.message);
     return res.status(500).json({ message: error.message });
   }
 };

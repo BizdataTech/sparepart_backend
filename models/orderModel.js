@@ -8,6 +8,7 @@ const Schema = new mongoose.Schema(
     ],
     totalAmount: { type: Number },
     deliveryAddress: {
+      name: String,
       address: String,
       house_number: Number,
       street: String,
@@ -22,7 +23,17 @@ const Schema = new mongoose.Schema(
       type: String,
       enum: ["pending", "paid", "failed", "refunded"],
     },
-    orderStatus: {
+    orderStatusHistory: [
+      {
+        status: {
+          type: String,
+          enum: ["placed", "confirmed", "shipped", "delivered", "cancelled"],
+        },
+        date: { type: Date, default: Date.now },
+        reason: { type: String },
+      },
+    ],
+    currentOrderStatus: {
       type: String,
       enum: ["placed", "confirmed", "shipped", "delivered", "cancelled"],
       default: "placed",
