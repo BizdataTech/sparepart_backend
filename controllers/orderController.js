@@ -96,12 +96,12 @@ export const createOrder = async (req, res) => {
           productId: item.productId,
           reservedStock: item.quantity,
         });
-      })
+      }),
     );
 
     await Cart.updateOne(
       { userId: req.userId },
-      { $set: { items: [], cartTotal: 0 } }
+      { $set: { items: [], cartTotal: 0 } },
     );
     return res.json({ message: "order placed", orderId: new_order._id });
   } catch (error) {
@@ -156,12 +156,28 @@ export const getAllOrders = async (req, res) => {
           userId: new mongoose.Types.ObjectId(req.userId),
         },
       },
+      { $unwind: "$items" },
       {
         $lookup: {
           from: "autoproducts",
           localField: "items.productId",
           foreignField: "_id",
-          as: "products",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      {
+        $group: {
+          _id: "$_id",
+          totalAmount: { $first: "$totalAmount" },
+          currentOrderStatus: { $first: "$currentOrderStatus" },
+          orderNumber: { $first: "$orderNumber" },
+          items: {
+            $push: {
+              product: "$product",
+              quantity: "$items.quantity",
+            },
+          },
         },
       },
       {
@@ -172,17 +188,19 @@ export const getAllOrders = async (req, res) => {
       {
         $project: {
           _id: 1,
+          totalAmount: 1,
           currentOrderStatus: 1,
           orderNumber: 1,
-          totalAmount: 1,
-          "products._id": 1,
-          "products.product_title": 1,
-          "products.price": 1,
-          "products.images": 1,
-          "products.part_number": 1,
+          "items.quantity": 1,
+          "items.product._id": 1,
+          "items.product.product_title": 1,
+          "items.product.price": 1,
+          "items.product.images": 1,
+          "items.product.part_number": 1,
         },
       },
     ]);
+
     return res.json({ orders });
   } catch (error) {
     console.log("failed to fetch orders:", error.message);
@@ -201,11 +219,33 @@ export const getOrderData = async (req, res) => {
         },
       },
       {
+        $unwind: "$items",
+      },
+      {
         $lookup: {
           from: "autoproducts",
           localField: "items.productId",
           foreignField: "_id",
-          as: "products",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      {
+        $group: {
+          _id: "$_id",
+          totalAmount: { $first: "$totalAmount" },
+          deliveryAddress: { $first: "$deliveryAddress" },
+          paymentMethod: { $first: "$paymentMethod" },
+          paymentStatus: { $first: "$paymentStatus" },
+          orderStatusHistory: { $first: "$orderStatusHistory" },
+          currentOrderStatus: { $first: "$currentOrderStatus" },
+          orderNumber: { $first: "$orderNumber" },
+          items: {
+            $push: {
+              product: "$product",
+              quantity: "$items.quantity",
+            },
+          },
         },
       },
       {
@@ -236,17 +276,33 @@ export const getClientOrderDetails = async (req, res) => {
           as: "user",
         },
       },
+      { $unwind: "$user" },
+      { $unwind: "$items" },
       {
         $lookup: {
           from: "autoproducts",
           localField: "items.productId",
           foreignField: "_id",
-          as: "products",
+          as: "product",
         },
       },
+      { $unwind: "$product" },
       {
-        $addFields: {
-          user: "$user.username",
+        $group: {
+          _id: "$_id",
+          totalAmount: { $first: "$totalAmount" },
+          deliveryAddress: { $first: "$deliveryAddress" },
+          paymentMethod: { $first: "$paymentMethod" },
+          paymentStatus: { $first: "$paymentStatus" },
+          orderStatusHistory: { $first: "$orderStatusHistory" },
+          currentOrderStatus: { $first: "$currentOrderStatus" },
+          orderNumber: { $first: "$orderNumber" },
+          items: {
+            $push: {
+              product: "$product",
+              quantity: "$items.quantity",
+            },
+          },
         },
       },
     ]);
@@ -271,9 +327,9 @@ export const confirmOrder = async (req, res) => {
         reservations.map(async (item) => {
           await AutoProduct.updateOne(
             { _id: item.productId, stock: { $gte: item.reservedStock } },
-            { $inc: { stock: -item.reservedStock } }
+            { $inc: { stock: -item.reservedStock } },
           );
-        })
+        }),
       );
       await StockReservaton.deleteMany({ orderId });
       order.currentOrderStatus = "confirmed";

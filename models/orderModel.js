@@ -40,7 +40,7 @@ const Schema = new mongoose.Schema(
     },
     orderNumber: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Order = mongoose.model("order", Schema);
