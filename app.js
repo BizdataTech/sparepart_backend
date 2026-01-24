@@ -13,6 +13,7 @@ import brandRouter from "./routers/brandRouter.js";
 import makeRouter from "./routers/makeRouter.js";
 import productSectionRouter from "./routers/productSectionRouter.js";
 import orderRouter from "./routers/orderRouter.js";
+import homeRouter from "./routers/homeRouter.js";
 import path from "path";
 
 const app = express();
@@ -33,7 +34,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  })
+  }),
 );
 
 app.use(cookieParser());
@@ -41,7 +42,7 @@ app.use(express.json());
 
 app.use(
   "/sample_images",
-  express.static(path.join(process.cwd(), "sample_images"))
+  express.static(path.join(process.cwd(), "sample_images")),
 );
 
 app.use("/api", userRouter);
@@ -56,5 +57,6 @@ app.use("/api", orderRouter);
 app.use("/api", brandRouter);
 app.use("/api", makeRouter);
 app.use("/api", productSectionRouter);
+app.use("/api", homeRouter);
 
 export default app;
