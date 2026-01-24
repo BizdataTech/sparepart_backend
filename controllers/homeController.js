@@ -18,3 +18,13 @@ export const createLogo = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+export const getLogo = async (req, res) => {
+  try {
+    let logo = await Logo.findOne({}).select("logo -_id");
+    return res.json({ logo: logo?.logo || null });
+  } catch (error) {
+    console.log("failed to fetch logo:", error.message);
+    return res.json({ message: error.message });
+  }
+};
