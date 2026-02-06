@@ -21,7 +21,7 @@ export const getCategoryById = async (req, res) => {
   } catch (error) {
     console.error(
       "error when trying to fetch the category by id.",
-      error.message
+      error.message,
     );
     res.status(500).json({ success: false, message: error.message });
   }
@@ -54,7 +54,7 @@ export const getCategories = async (req, res) => {
         categories = await AutoCategory.find().populate("parent");
         const getLevelsCount = (categories, currentLevel = 1, levels = [1]) => {
           const matchingLevel = categories.find(
-            (category) => category.level === currentLevel
+            (category) => category.level === currentLevel,
           );
           if (matchingLevel) {
             levels.push(currentLevel + 1);
@@ -76,7 +76,7 @@ export const getCategories = async (req, res) => {
 
         let getDropdown = (categories, parent = null) => {
           let parents = categories.filter(
-            (cata) => String(cata.parent) === String(parent)
+            (cata) => String(cata.parent) === String(parent),
           );
           if (!parents.length) return null;
           return parents.map((item) => ({
@@ -90,6 +90,8 @@ export const getCategories = async (req, res) => {
         const dropdown = getDropdown(categories);
         return res.json({ categories: dropdown });
 
+      case "slug":
+        return;
       default:
         break;
     }

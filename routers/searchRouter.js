@@ -42,7 +42,7 @@ router.get("/search/suggestions", async (req, res) => {
     } catch (error) {
       console.warn(
         "Atlas search failed, falling back to regex:",
-        error.message
+        error.message,
       );
 
       const terms = query.split(/\s+/).filter(Boolean); // ["Samsung", "Washing", "machine", "1400rpm"]

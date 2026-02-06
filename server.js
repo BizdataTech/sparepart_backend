@@ -11,13 +11,13 @@ const connectDB = async () => {
     await mongoose.connect(CONNECTION_STRING);
     app.listen(PORT, () =>
       console.log(
-        `Database connected\nServer listening for request via port ${PORT}`
-      )
+        `Database connected\nServer listening for request via port ${PORT}`,
+      ),
     );
   } catch (error) {
     console.error(
       "database connection failed. server not listening for request\n",
-      error
+      error,
     );
   }
 };
