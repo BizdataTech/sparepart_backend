@@ -3,6 +3,7 @@ import AutoCategory from "../models/autoCategoryModel.js";
 import AutoProduct from "../models/autoProductModel.js";
 import { Banner, ProductListing, Section } from "../models/sectionModel.js";
 import cloudinary from "../utils/cloudinary.js";
+import uploadToCloudinary from "../utils/uploadToCloudinary.js";
 
 export const getSections = async (req, res) => {
   try {
@@ -64,6 +65,7 @@ export const getSectionData = async (req, res) => {
 
 export const getSectionReference = async (req, res) => {
   try {
+    console.log("hey");
     let { reference_id } = req.params;
     let { data_source } = req.query;
     let result;
@@ -127,7 +129,7 @@ export const createSection = async (req, res) => {
               (error, result) => {
                 if (error) return reject(error);
                 resolve({
-                  url: result.secure_url,
+                  secure_url: result.secure_url,
                   public_id: result.public_id,
                 });
               },
@@ -136,8 +138,12 @@ export const createSection = async (req, res) => {
           });
         };
 
-        let cloudinary_result = await uploadToCloudinary(req.file);
-        await Banner.create({ ...data, url: cloudinary_result.url });
+        let { secure_url, public_id } = await uploadToCloudinary(req.file);
+        await Banner.create({
+          ...data,
+          secure_url,
+          public_id,
+        });
         break;
       case "product_listing":
         console.log("product listing values:", data);
@@ -157,8 +163,54 @@ export const createSection = async (req, res) => {
   }
 };
 
+export const updateSection = async (req, res) => {
+  try {
+    const section = await Section.findOne({ _id: req.params.id })
+      .select("public_id section_type")
+      .lean();
+    if (!section)
+      return res
+        .status(400)
+        .json({ message: "Updation failed : Invalid section provided" });
+
+    let Model = section.section_type === "banner" ? Banner : ProductListing;
+
+    switch (section.section_type) {
+      case "banner":
+        if (req.file) {
+          await cloudinary.uploader.destroy(section.public_id);
+          let { secure_url, public_id } = await uploadToCloudinary(
+            req.file.buffer,
+            "banner_images",
+          );
+          req.body.secure_url = secure_url;
+          req.body.public_id = public_id;
+        }
+        let result = await Model.updateOne(
+          { _id: req.params.id },
+          { $set: req.body },
+          { runValidators: true },
+        );
+        return res.json({ message: "Section Updated" });
+      case "product_listing":
+        await Model.updateOne(
+          { _id: req.params.id },
+          { $set: req.body },
+          { runValidators: true },
+        );
+        return res.json({ message: "Section Updated" });
+    }
+  } catch (error) {
+    console.log("failed to update section:", error);
+    return res
+      .status(500)
+      .json({ message: `Updation failed : ${error.message}` });
+  }
+};
+
 export const getSearch = async (req, res) => {
   try {
+    console.log("hey");
     const { data_source } = req.params;
     let result = [];
     switch (data_source) {
@@ -214,6 +266,7 @@ export const getSearch = async (req, res) => {
         ]);
         break;
       case "category":
+        console.log("hey");
         result = await AutoCategory.aggregate([
           {
             $match: {
@@ -224,6 +277,7 @@ export const getSearch = async (req, res) => {
             $project: { title: 1, slug: 1 },
           },
         ]);
+
         break;
       default:
         break;

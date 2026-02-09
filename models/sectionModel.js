@@ -12,7 +12,7 @@ const SectionSchema = new mongoose.Schema(
 export const Section = mongoose.model("section", SectionSchema);
 
 const BannerSchema = new mongoose.Schema({
-  url: { type: String },
+  secure_url: { type: String },
   public_id: { type: String },
   data_source: { type: String, enum: ["product", "category"] },
   reference_id: { type: String },
