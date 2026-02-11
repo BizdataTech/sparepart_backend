@@ -247,7 +247,6 @@ export const deleteSection = async (req, res) => {
 
 export const getSearch = async (req, res) => {
   try {
-    console.log("hey");
     const { data_source } = req.params;
     let result = [];
     switch (data_source) {
