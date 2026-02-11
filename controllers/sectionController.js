@@ -18,39 +18,49 @@ export const getSections = async (req, res) => {
 export const getSectionData = async (req, res) => {
   try {
     let result = [];
-    let { id, limit } = req.query;
-    switch (req.params.type) {
-      case "category":
-        result = await AutoProduct.aggregate([
-          {
-            $match: {
-              category: new mongoose.Types.ObjectId(id),
+    let { reference_id, data_source, limit } = req.query;
+    switch (req.params.section_type) {
+      case "banner":
+        if (data_source === "category") {
+          let category_match = await AutoCategory.findOne({
+            _id: reference_id,
+          }).select("slug -_id");
+          result = `/category/${category_match.slug}`;
+        }
+        break;
+      case "product_listing":
+        if (data_source === "category") {
+          result = await AutoProduct.aggregate([
+            {
+              $match: {
+                category: new mongoose.Types.ObjectId(reference_id),
+              },
             },
-          },
-          {
-            $lookup: {
-              from: "brands",
-              localField: "brand",
-              foreignField: "_id",
-              as: "brand",
+            {
+              $lookup: {
+                from: "brands",
+                localField: "brand",
+                foreignField: "_id",
+                as: "brand",
+              },
             },
-          },
-          {
-            $unwind: "$brand",
-          },
-          {
-            $limit: Number(limit),
-          },
-          {
-            $project: {
-              product_title: 1,
-              brand: "$brand.brand_name",
-              product_type: 1,
-              images: 1,
-              price: 1,
+            {
+              $unwind: "$brand",
             },
-          },
-        ]);
+            {
+              $limit: Number(limit),
+            },
+            {
+              $project: {
+                product_title: 1,
+                brand: "$brand.brand_name",
+                product_type: 1,
+                images: 1,
+                price: 1,
+              },
+            },
+          ]);
+        }
         break;
       default:
         break;
@@ -205,6 +215,33 @@ export const updateSection = async (req, res) => {
     return res
       .status(500)
       .json({ message: `Updation failed : ${error.message}` });
+  }
+};
+
+export const deleteSection = async (req, res) => {
+  let { id } = req.params;
+  try {
+    const section = await Section.findOne({ _id: id }).select("section_type");
+    if (!section)
+      return res.status(400).return({
+        message: "Deletion Dismissed : Requested section could not found",
+      });
+
+    switch (section.section_type) {
+      case "banner":
+        await Banner.deleteOne({ _id: id });
+        break;
+      case "product_listing":
+        await ProductListing.deleteOne({ _id: id });
+        break;
+      default:
+        break;
+    }
+
+    return res.json({ message: "Section Deleted" });
+  } catch (error) {
+    console.log("failed to delete section:", error.message);
+    return res.status(500).json({ message: error.message });
   }
 };
 
