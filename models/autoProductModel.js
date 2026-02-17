@@ -10,7 +10,12 @@ const Schema = new mongoose.Schema({
   part_number: { type: String },
   price: { type: Number },
   stock: { type: Number },
-  images: { type: [String] },
+  images: [
+    {
+      url: String,
+      public_id: String,
+    },
+  ],
   attributes: [{ label: String, value: String }],
   fitments: [mongoose.Schema.Types.ObjectId],
 });

@@ -55,7 +55,8 @@ export const getSectionData = async (req, res) => {
                 product_title: 1,
                 brand: "$brand.brand_name",
                 product_type: 1,
-                images: 1,
+                image: { $arrayElemAt: ["$images.url", 0] },
+
                 price: 1,
               },
             },

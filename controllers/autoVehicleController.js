@@ -58,7 +58,7 @@ export const updateVehicle = async (req, res) => {
     let update_result = await Vehicle.findByIdAndUpdate(
       id,
       { $set: data },
-      { new: true }
+      { new: true },
     );
     console.log("update result:", update_result);
     return res.json({ vehicle: update_result });
@@ -70,7 +70,7 @@ export const updateVehicle = async (req, res) => {
 export const createVehicle = async (req, res) => {
   let data = req.body;
   data = Object.fromEntries(
-    Object.entries(data).map(([key, value]) => [key, value.trim()])
+    Object.entries(data).map(([key, value]) => [key, value.trim()]),
   );
   try {
     data.start_year = parseInt(data.start_year);

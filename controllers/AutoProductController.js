@@ -19,18 +19,89 @@ export const createProduct = async (req, res) => {
             (error, result) => {
               if (error) reject(error);
               else resolve(result);
-            }
+            },
           );
           stream.end(file.buffer);
         });
-      })
+      }),
     );
-    let images = cloudinary_results.map((image) => image.secure_url);
+    let images = cloudinary_results.map((image) => ({
+      url: image.secure_url,
+      public_id: image.public_id,
+    }));
     console.log("date:", data);
     await AutoProduct.create({ ...data, images });
-    res.json({ message: "product created" });
+    res.json({ message: "Success : Product created" });
   } catch (error) {
     console.log("error:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateProduct = async (req, res) => {
+  try {
+    let { id: productId } = req.params;
+    let data = req.body;
+    console.log("data:", req.body);
+
+    // Delete cancelled images from cloudinary
+    if (data.cancelledIDs) {
+      data.cancelledIDs = JSON.parse(data.cancelledIDs);
+      await Promise.all(
+        data.cancelledIDs.map((public_id) =>
+          cloudinary.uploader.destroy(public_id),
+        ),
+      );
+    }
+
+    // Upload new images to cloudinary
+    let newImages = [];
+    if (req.files && req.files.length > 0) {
+      let cloudinary_results = await Promise.all(
+        req.files.map((file) => {
+          return new Promise((resolve, reject) => {
+            let stream = cloudinary.uploader.upload_stream(
+              { folder: "auto_products" },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+              },
+            );
+            stream.end(file.buffer);
+          });
+        }),
+      );
+      newImages = cloudinary_results.map((image) => ({
+        url: image.secure_url,
+        public_id: image.public_id,
+      }));
+    }
+
+    // Get existing images that weren't cancelled
+    let retainedImages = (
+      await AutoProduct.findById(productId).select("images -_id")
+    ).images.filter(
+      (image) => !(data.cancelledIDs || []).includes(image.public_id),
+    );
+
+    // Combine retained and new images
+    let updatedImages = [...retainedImages, ...newImages];
+
+    // Prepare update data
+    let updateData = { ...data };
+    delete updateData.cancelledIDs;
+    updateData.images = updatedImages;
+
+    // Parse fitments if it's a string
+    if (updateData.fitments)
+      updateData.fitments = JSON.parse(updateData.fitments);
+
+    // Update the product
+    await AutoProduct.findByIdAndUpdate(productId, updateData, { new: true });
+
+    res.json({ message: "Success : Product Updated" });
+  } catch (error) {
+    console.log("failed to update product:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
@@ -111,7 +182,7 @@ export const getProducts = async (req, res) => {
 
       case "home":
         products = await AutoProduct.find({ category: category }).populate(
-          "brand"
+          "brand",
         );
         return res.json({ products });
 
@@ -354,6 +425,29 @@ export const getProduct = async (req, res) => {
           product.stock - (product_reservation_details[0]?.count || 0);
 
         return res.json({ stock });
+      case "genuine-update":
+        product = (
+          await AutoProduct.aggregate([
+            { $match: { _id: new mongoose.Types.ObjectId(id) } },
+            {
+              $lookup: {
+                from: "brands",
+                localField: "brand",
+                foreignField: "_id",
+                as: "brand",
+              },
+            },
+            {
+              $project: {
+                product_title: 1,
+                "brand.brand_name": 1,
+                product_type: 1,
+                part_number: 1,
+              },
+            },
+          ])
+        )[0];
+        return res.json({ product });
       default:
         product = await AutoProduct.aggregate([
           { $match: { _id: new mongoose.Types.ObjectId(id) } },
@@ -378,6 +472,14 @@ export const getProduct = async (req, res) => {
           },
           {
             $unwind: "$brand",
+          },
+          {
+            $lookup: {
+              from: "vehicles",
+              localField: "fitments",
+              foreignField: "_id",
+              as: "fitments",
+            },
           },
         ]);
 
