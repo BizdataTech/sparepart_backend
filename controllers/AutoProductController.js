@@ -511,3 +511,11 @@ export const getProduct = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const deleteProduct = async (req, res) => {
+  try {
+  } catch (error) {
+    console.log("failed to delete product:", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
