@@ -2,7 +2,10 @@ import mongoose from "mongoose";
 
 const Schema = new mongoose.Schema({
   brand_name: { type: String },
-  image: { type: String },
+  image: {
+    url: String,
+    public_id: String,
+  },
 });
 
 const Brand = mongoose.model("brand", Schema);

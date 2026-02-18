@@ -7,14 +7,14 @@ import {
   updateProduct,
 } from "../controllers/AutoProductController.js";
 import upload from "../middlewares/multer.js";
-import multer, { memoryStorage } from "multer";
+import multer from "multer";
 
 const router = express.Router();
 
 router.post("/auto-products", upload.array("image"), createProduct);
 router.patch(
   "/auto-products/:id",
-  multer({ storage: memoryStorage() }).array("image"),
+  multer({ storage: multer.memoryStorage() }).array("image"),
   updateProduct,
 );
 router.get("/auto-products", getProducts);

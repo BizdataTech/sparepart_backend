@@ -514,6 +514,23 @@ export const getProduct = async (req, res) => {
 
 export const deleteProduct = async (req, res) => {
   try {
+    let { id } = req.params;
+    let product = await AutoProduct.findById(id);
+    if (!product)
+      return res.status(400).json({
+        message:
+          "Deletion Failed : Couldn't find any matching record to delete.",
+      });
+    const referenced_docs = await AutoProduct.findOne({
+      genuine_reference: id,
+    });
+    if (referenced_docs)
+      return res.status(409).json({
+        message:
+          "Delete Blocked : This genuine product has linked OEM/aftermarket products.",
+      });
+    await AutoProduct.deleteOne({ _id: id });
+    return res.json({ message: "Product Deleted" });
   } catch (error) {
     console.log("failed to delete product:", error.message);
     return res.status(500).json({ message: error.message });
