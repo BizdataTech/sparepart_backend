@@ -75,3 +75,20 @@ export const getBrands = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const deleteBrand = async (req, res) => {
+  try {
+    let { id } = req.params;
+    let brand = await Brand.findOne({ _id: id }).select("image.public_id -_id");
+    if (!brand)
+      return res
+        .status(422)
+        .json({ message: "Brand Failed to Delete : Couldn't find resourse." });
+    await cloudinary.uploader.destroy(brand.image.public_id);
+    await Brand.deleteOne({ _id: id });
+    return res.json({ message: "Brand Deleted" });
+  } catch (error) {
+    console.log("Failed to delete brand :", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};

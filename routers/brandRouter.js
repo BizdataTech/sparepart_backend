@@ -1,6 +1,7 @@
 import express from "express";
 import {
   createBrand,
+  deleteBrand,
   getBrands,
   updateBrand,
 } from "../controllers/brandController.js";
@@ -16,5 +17,6 @@ router.patch(
   updateBrand,
 );
 router.get("/brands", getBrands);
+router.delete("/brands/:id", deleteBrand);
 
 export default router;
