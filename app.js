@@ -5,16 +5,13 @@ import userRouter from "./routers/userRouter.js";
 import autoProductRouter from "./routers/autoProductRouter.js";
 import autoCategoryRouter from "./routers/autoCategoryRouter.js";
 import autoVehicleRouter from "./routers/autoVehicleRouter.js";
-import searchRouter from "./routers/searchRouter.js";
 import cartRouter from "./routers/cartRouter.js";
 import brandRouter from "./routers/brandRouter.js";
 import makeRouter from "./routers/makeRouter.js";
-import productSectionRouter from "./routers/productSectionRouter.js";
 import orderRouter from "./routers/orderRouter.js";
 import homeRouter from "./routers/homeRouter.js";
 import sectionRouter from "./routers/sectionRouter.js";
 import clientRouter from "./routers/clientRouter.js";
-import path from "path";
 
 const app = express();
 const allowedURLs = [
@@ -40,21 +37,14 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 
-app.use(
-  "/sample_images",
-  express.static(path.join(process.cwd(), "sample_images")),
-);
-
 app.use("/api", userRouter);
 app.use("/api", autoProductRouter);
 app.use("/api", autoCategoryRouter);
 app.use("/api", autoVehicleRouter);
-app.use("/api", searchRouter);
 app.use("/api", cartRouter);
 app.use("/api", orderRouter);
 app.use("/api", brandRouter);
 app.use("/api", makeRouter);
-app.use("/api", productSectionRouter);
 app.use("/api", homeRouter);
 app.use("/api", sectionRouter);
 app.use("/api", clientRouter);

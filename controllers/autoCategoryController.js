@@ -105,10 +105,10 @@ export async function createCategory(req, res) {
   try {
     const data = req.body;
     console.log("data:", data);
-    const newCategory = await AutoCategory.create(data);
-    res
-      .status(200)
-      .json({ message: "Category successfully created", data: newCategory });
+    let category_data = { ...data };
+    category_data.slug = category_data.title.toLowerCase().split(" ").join("-");
+    await AutoCategory.create(category_data);
+    res.status(200).json({ message: "Category successfully created" });
   } catch (error) {
     console.log("error:", error);
     res.status(500).json({ success: false, message: error.message });

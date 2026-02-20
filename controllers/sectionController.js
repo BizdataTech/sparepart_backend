@@ -26,6 +26,11 @@ export const getSectionData = async (req, res) => {
             _id: reference_id,
           }).select("slug -_id");
           result = `/category/${category_match.slug}`;
+        } else if (data_source === "product") {
+          let product_match = await AutoProduct.findOne({
+            _id: reference_id,
+          }).select("_id");
+          result = `/product/${product_match._id}`;
         }
         break;
       case "product_listing":
