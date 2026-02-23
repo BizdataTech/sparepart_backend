@@ -1,6 +1,5 @@
 import User from "../models/userModel.js";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
 import getToken from "../utils/getToken.js";
 import verifyPassword from "../utils/verifyPassword.js";
 import mongoose from "mongoose";
@@ -159,7 +158,7 @@ export const getUserAddress = async (req, res) => {
     switch (type) {
       case "all":
         let { addresses } = await User.findOne({ _id: req.userId }).select(
-          "addresses -_id"
+          "addresses -_id",
         );
         return res.json({ addresses });
       case "default":
@@ -200,7 +199,7 @@ export const getAddress = async (req, res) => {
         _id: req.userId,
         "addresses._id": req.params.id,
       },
-      { "addresses.$": 1 }
+      { "addresses.$": 1 },
     );
     return res.json({ address: address.addresses[0] });
   } catch (error) {
@@ -223,7 +222,7 @@ export const updateAddress = async (req, res) => {
         $set: {
           "addresses.$.default": req.body.default,
         },
-      }
+      },
     );
 
     res.json({ message: "address updated" });
@@ -338,7 +337,7 @@ export const addToWishlist = async (req, res) => {
     console.log(matching_product ? true : false);
     await User.updateOne(
       { _id: req.userId },
-      { $addToSet: { wishlist: { productId, addedAt: new Date() } } }
+      { $addToSet: { wishlist: { productId, addedAt: new Date() } } },
     );
     return res.json({ message: "product added to wishlist" });
   } catch (error) {
@@ -353,7 +352,7 @@ export const removeFromWishlist = async (req, res) => {
     console.log("productId:", productId);
     await User.updateOne(
       { _id: req.userId },
-      { $pull: { wishlist: { productId } } }
+      { $pull: { wishlist: { productId } } },
     );
     return res.json({ message: "product removed from db" });
   } catch (error) {

@@ -12,6 +12,7 @@ import orderRouter from "./routers/orderRouter.js";
 import homeRouter from "./routers/homeRouter.js";
 import sectionRouter from "./routers/sectionRouter.js";
 import clientRouter from "./routers/clientRouter.js";
+import adminUserRouter from "./routers/adminUserRouter.js";
 
 const app = express();
 const allowedURLs = [
@@ -37,6 +38,7 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 
+app.use("/api", adminUserRouter);
 app.use("/api", userRouter);
 app.use("/api", autoProductRouter);
 app.use("/api", autoCategoryRouter);
