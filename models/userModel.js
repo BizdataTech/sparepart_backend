@@ -13,7 +13,7 @@ const AddressSchema = new mongoose.Schema(
     phone_number: Number,
     default: { type: Boolean, default: false },
   },
-  { _id: true }
+  { _id: true },
 );
 
 const UserSchema = new mongoose.Schema(
@@ -23,7 +23,7 @@ const UserSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user"],
       default: "user",
     },
     wishlist: [
@@ -32,7 +32,7 @@ const UserSchema = new mongoose.Schema(
     addresses: [AddressSchema],
     blocked: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const User = mongoose.model("user", UserSchema);

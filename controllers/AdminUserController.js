@@ -1,6 +1,7 @@
 import AdminUser from "../models/AdminUserModel.js";
 import bcrypt from "bcrypt";
 import { getAdminToken } from "../utils/adminToken.js";
+import User from "../models/userModel.js";
 
 export const getAdmin = async (req, res) => {
   try {
@@ -10,6 +11,42 @@ export const getAdmin = async (req, res) => {
     return res.json({ user });
   } catch (error) {
     console.log("admin failed to fetch :", error.message);
+  }
+};
+
+export const getAppUsers = async (req, res) => {
+  try {
+    let users = await User.find().select("username email blocked createdAt");
+    return res.json({ users });
+  } catch (error) {
+    console.log("failed to fetch app users :", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const toggleUserStat = async (req, res) => {
+  try {
+    await User.updateOne({ _id: req.params.id }, [
+      {
+        $set: {
+          blocked: { $not: "$blocked" },
+        },
+      },
+    ]);
+    return res.json({ message: "Status Updated" });
+  } catch (error) {
+    console.log("failed to udpate user stat :", error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteUser = async (req, res) => {
+  try {
+    await User.deleteOne({ _id: req.params.id });
+    return res.json({ message: "User Deleted" });
+  } catch (error) {
+    console.log("Failed to delete user :", error.message);
+    return res.status(500).json({ message: error.message });
   }
 };
 
