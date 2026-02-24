@@ -5,23 +5,34 @@ import verifyPassword from "../utils/verifyPassword.js";
 import mongoose from "mongoose";
 
 const getUserData = async (id) => {
-  let data = await User.aggregate([
-    { $match: { _id: new mongoose.Types.ObjectId(id) } },
-    {
-      $project: {
-        username: 1,
-        email: 1,
-        addresses: 1,
+  let data = (
+    await User.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      {
+        $project: {
+          username: 1,
+          email: 1,
+          addresses: 1,
+        },
       },
-    },
-  ]);
-  return data[0];
+    ])
+  )[0];
+  return data;
 };
 
 export const verifyState = async (req, res) => {
   try {
-    let user = await User.findById(req.userId).select("_id");
-    res.json({ user: user._id });
+    let user = await User.findById(req.userId).select("_id blocked");
+    if (user.blocked)
+      return res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: true,
+          sameSite: "lax",
+        })
+        .status(403)
+        .json({ message: "Access Denied" });
+    return res.json({ user: user._id });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -73,7 +84,9 @@ export const signup = async (req, res) => {
 export const signinUser = async (req, res) => {
   const { email, password } = req.body;
   try {
-    let matchingUser = await User.findOne({ email }).select("_id password");
+    let matchingUser = await User.findOne({ email }).select(
+      "_id password blocked",
+    );
     if (!matchingUser) {
       return res.status(401).json({ message: "Invalid Email or Password" });
     }
@@ -81,6 +94,8 @@ export const signinUser = async (req, res) => {
     if (!compareResult) {
       return res.status(401).json({ message: "Invalid Email or Password" });
     }
+    if (matchingUser.blocked)
+      return res.status(403).json({ message: "User Access Denied" });
     let token = getToken(matchingUser._id);
     res.cookie("token", token, {
       httpOnly: true,

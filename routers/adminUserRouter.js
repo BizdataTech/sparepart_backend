@@ -12,9 +12,9 @@ import authenticateAdmin from "../middlewares/authenticateAdmin.js";
 
 const router = express.Router();
 
-router.get("/users", getAppUsers);
-router.patch("/users/:id/toggle-user", toggleUserStat);
-router.delete("/users/:id", deleteUser);
+router.get("/users", authenticateAdmin, getAppUsers);
+router.patch("/users/:id/toggle-user", authenticateAdmin, toggleUserStat);
+router.delete("/users/:id", authenticateAdmin, deleteUser);
 router.get("/admin-users/verify", authenticateAdmin, getAdmin);
 router.post("/admin-users/sign-up", createUser);
 router.post("/admin-users/sign-in", loginUser);

@@ -43,7 +43,13 @@ export const toggleUserStat = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     await User.deleteOne({ _id: req.params.id });
-    return res.json({ message: "User Deleted" });
+    return res
+      .clearCookie("token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+      })
+      .json({ message: "User Deleted" });
   } catch (error) {
     console.log("Failed to delete user :", error.message);
     return res.status(500).json({ message: error.message });
