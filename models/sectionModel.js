@@ -12,6 +12,7 @@ const SectionSchema = new mongoose.Schema(
 export const Section = mongoose.model("section", SectionSchema);
 
 const BannerSchema = new mongoose.Schema({
+  banner_type: { type: String, enum: ["main", "mini"] },
   secure_url: { type: String },
   public_id: { type: String },
   data_source: { type: String, enum: ["product", "category"] },
@@ -25,7 +26,6 @@ const ProductListingSchema = new mongoose.Schema({
   data_source: { type: String, enum: ["category"] },
   reference_id: { type: String },
   limit: { type: Number },
-  redirection: { type: Boolean, default: false },
   layout: { type: String, enum: ["horizontal", "grid"] },
 });
 

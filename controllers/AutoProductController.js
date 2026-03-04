@@ -113,14 +113,56 @@ export const getProducts = async (req, res) => {
     switch (filter) {
       case "admin-products":
         let limit = 10;
-        let total_products = await AutoProduct.find().countDocuments();
-        products = await AutoProduct.find()
-          .populate("brand")
-          .populate("category");
+        console.log(req.query.search);
+        let search_words = req.query.search.split(/\s+/);
+        let search_query = search_words.map((word) => ({
+          $or: [
+            { product_title: { $regex: word, $options: "i" } },
+            { part_number: { $regex: word, $options: "i" } },
+          ],
+        }));
+
+        let auto_products = await AutoProduct.aggregate([
+          {
+            $lookup: {
+              from: "autocategories",
+              localField: "category",
+              foreignField: "_id",
+              as: "category",
+            },
+          },
+          { $unwind: "$category" },
+          {
+            $lookup: {
+              from: "brands",
+              localField: "brand",
+              foreignField: "_id",
+              as: "brand",
+            },
+          },
+          { $unwind: "$brand" },
+          { $match: { $and: search_query } },
+          {
+            $sort: {
+              createdAt: -1,
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              product_title: 1,
+              "category.title": 1,
+              "brand.brand_name": 1,
+              product_type: 1,
+            },
+          },
+        ]);
+
         return res.json({
-          products,
-          total_pages: Math.ceil(total_products / limit),
+          result: auto_products,
+          total_pages: Math.ceil(auto_products.length / limit),
         });
+
       case "products":
         let { type } = req.query;
         let match = {};

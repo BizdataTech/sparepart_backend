@@ -209,6 +209,8 @@ export const updateSection = async (req, res) => {
         );
         return res.json({ message: "Section Updated" });
       case "product_listing":
+        console.log("update data:", req.body);
+        let data = req.body;
         await Model.updateOne(
           { _id: req.params.id },
           { $set: req.body },

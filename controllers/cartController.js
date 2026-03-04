@@ -51,7 +51,7 @@ export const getCart = async (req, res) => {
           newItem.available_stock = available_product_stock;
         else newItem.available_stock = 6;
         return newItem;
-      })
+      }),
     );
     console.log("items:", items);
     return res.json({ cart: { items, cartTotal: cart.cartTotal } });
@@ -68,7 +68,7 @@ export const addToCart = async (req, res) => {
   try {
     console.log("req.body:", req.body);
     let { price } = await AutoProduct.findOne({ _id: productId }).select(
-      "price"
+      "price",
     );
 
     let totalAmount = price * quantity;
@@ -150,7 +150,7 @@ export const updateCartItem = async (req, res) => {
             },
           },
         },
-      ]
+      ],
     );
 
     res.json({ message: "cart updated" });

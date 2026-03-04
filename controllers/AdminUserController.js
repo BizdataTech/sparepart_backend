@@ -16,8 +16,17 @@ export const getAdmin = async (req, res) => {
 
 export const getAppUsers = async (req, res) => {
   try {
-    let users = await User.find().select("username email blocked createdAt");
-    return res.json({ users });
+    let search_words = req.query.search.split(/\s+/);
+    let query = search_words.map((w) => ({
+      $or: [
+        { username: { $regex: w, $options: "i" } },
+        { email: { $regex: w, $options: "i" } },
+      ],
+    }));
+    let users = await User.find({ $and: query })
+      .sort({ createdAt: -1 })
+      .select("username email blocked createdAt");
+    return res.json({ result: users });
   } catch (error) {
     console.log("failed to fetch app users :", error.message);
     return res.status(500).json({ message: error.message });

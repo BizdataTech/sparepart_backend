@@ -69,10 +69,13 @@ export const updateBrand = async (req, res) => {
 
 export const getBrands = async (req, res) => {
   try {
-    let brands = await Brand.find();
-    res.json({ brands });
+    let query = req.query.search.trim();
+    let brands = await Brand.find({
+      brand_name: { $regex: query, $options: "i" },
+    }).sort({ createdAt: -1 });
+    return res.json({ result: brands });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -83,7 +86,7 @@ export const deleteBrand = async (req, res) => {
     if (!brand)
       return res
         .status(422)
-        .json({ message: "Brand Failed to Delete : Couldn't find resourse." });
+        .json({ message: "Failed : Couldn't find resourse." });
     await cloudinary.uploader.destroy(brand.image.public_id);
     await Brand.deleteOne({ _id: id });
     return res.json({ message: "Brand Deleted" });

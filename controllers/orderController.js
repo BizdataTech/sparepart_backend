@@ -112,19 +112,22 @@ export const createOrder = async (req, res) => {
 
 export const getAllClientOrders = async (req, res) => {
   try {
+    let search_words = req.query.search.split(/\s+/);
+    let query = search_words.map((w) => ({
+      $or: [
+        { orderNumber: { $regex: w, $options: "i" } },
+        { "deliveryAddress.name": { $regex: w, $options: "i" } },
+      ],
+    }));
     let orders = await Order.aggregate([
       {
-        $lookup: {
-          from: "users",
-          localField: "userId",
-          foreignField: "_id",
-          as: "user",
+        $match: {
+          $and: query,
         },
       },
-      { $unwind: "$user" },
       {
         $project: {
-          user: "$user.username",
+          user: "$deliveryAddress.name",
           items: { $size: "$items" },
           totalAmount: 1,
           paymentMethod: 1,
@@ -141,7 +144,7 @@ export const getAllClientOrders = async (req, res) => {
         },
       },
     ]);
-    return res.json({ data: orders });
+    return res.json({ result: orders });
   } catch (error) {
     console.log("failed to get all client orders -", error.message);
     return res.status(500).json({ message: error.message });
@@ -215,7 +218,6 @@ export const getOrderData = async (req, res) => {
       {
         $match: {
           _id: new mongoose.Types.ObjectId(id),
-          userId: new mongoose.Types.ObjectId(req.userId),
         },
       },
       {
@@ -266,47 +268,59 @@ export const getOrderData = async (req, res) => {
 export const getClientOrderDetails = async (req, res) => {
   try {
     let { id } = req.params;
-    let data = await Order.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(id) } },
-      {
-        $lookup: {
-          from: "users",
-          localField: "userId",
-          foreignField: "_id",
-          as: "user",
+    let data = (
+      await Order.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(id) } },
+        {
+          $lookup: {
+            from: "users",
+            localField: "userId",
+            foreignField: "_id",
+            as: "user",
+          },
         },
-      },
-      { $unwind: "$user" },
-      { $unwind: "$items" },
-      {
-        $lookup: {
-          from: "autoproducts",
-          localField: "items.productId",
-          foreignField: "_id",
-          as: "product",
+        {
+          $unwind: {
+            path: "$user",
+            preserveNullAndEmptyArrays: true,
+          },
         },
-      },
-      { $unwind: "$product" },
-      {
-        $group: {
-          _id: "$_id",
-          totalAmount: { $first: "$totalAmount" },
-          deliveryAddress: { $first: "$deliveryAddress" },
-          paymentMethod: { $first: "$paymentMethod" },
-          paymentStatus: { $first: "$paymentStatus" },
-          orderStatusHistory: { $first: "$orderStatusHistory" },
-          currentOrderStatus: { $first: "$currentOrderStatus" },
-          orderNumber: { $first: "$orderNumber" },
-          items: {
-            $push: {
-              product: "$product",
-              quantity: "$items.quantity",
+        { $unwind: "$items" },
+        {
+          $lookup: {
+            from: "autoproducts",
+            localField: "items.productId",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        {
+          $unwind: {
+            path: "$product",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $group: {
+            _id: "$_id",
+            totalAmount: { $first: "$totalAmount" },
+            deliveryAddress: { $first: "$deliveryAddress" },
+            paymentMethod: { $first: "$paymentMethod" },
+            paymentStatus: { $first: "$paymentStatus" },
+            orderStatusHistory: { $first: "$orderStatusHistory" },
+            currentOrderStatus: { $first: "$currentOrderStatus" },
+            orderNumber: { $first: "$orderNumber" },
+            items: {
+              $push: {
+                product: "$product",
+                quantity: "$items.quantity",
+              },
             },
           },
         },
-      },
-    ]);
-    return res.json({ data: data[0] });
+      ])
+    )[0];
+    return res.json({ data });
   } catch (error) {
     console.log("fetching orders failed:", error.message);
     return res.status(500).json({ message: error.message });

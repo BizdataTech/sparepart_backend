@@ -4,6 +4,7 @@ import cloudinary from "../utils/cloudinary.js";
 export const createLogo = async (req, res) => {
   try {
     let existingLogo = await Logo.findOne();
+    console.log("existing logo:", existingLogo);
     if (existingLogo) await cloudinary.uploader.destroy(existingLogo.public_id);
 
     const result = cloudinary.uploader.upload_stream(

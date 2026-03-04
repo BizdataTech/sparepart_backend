@@ -34,11 +34,43 @@ export const getCategories = async (req, res) => {
     let categories = [];
     switch (filter) {
       case "all":
-        categories = await AutoCategory.find().populate("parent");
-        let total_categories = await AutoCategory.find().countDocuments();
+        categories = await AutoCategory.aggregate([
+          {
+            $lookup: {
+              from: "autocategories",
+              localField: "parent",
+              foreignField: "_id",
+              as: "parent",
+            },
+          },
+          {
+            $unwind: {
+              path: "$parent",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+          {
+            $sort: {
+              createdAt: -1,
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              title: 1,
+              level: 1,
+              parent: "$parent.title",
+            },
+          },
+          {
+            $match: {
+              title: { $regex: req.query.search, $options: "i" },
+            },
+          },
+        ]);
         return res.json({
-          categories,
-          total_pages: Math.ceil(total_categories / limit),
+          result: categories,
+          total_pages: Math.ceil(categories.length / limit),
         });
       case "product-category":
         categories = await AutoCategory.find().populate("parent");
