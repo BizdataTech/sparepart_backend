@@ -279,7 +279,30 @@ export const getProducts = async (req, res) => {
         return res.json({ products });
       case "product-page":
         let { genuine_reference } = req.query;
-        products = await AutoProduct.find({ genuine_reference });
+        products = await AutoProduct.aggregate([
+          { $match: { genuine_reference } },
+          {
+            $lookup: {
+              from: "brands",
+              localField: "brand",
+              foreignField: "_id",
+              as: "brand",
+            },
+          },
+          {
+            $unwind: "$brand",
+          },
+          {
+            $project: {
+              product_title: 1,
+              brand: "$brand.brand_name",
+              product_type: 1,
+              image: { $arrayElemAt: ["$images.url", 0] },
+              price: 1,
+            },
+          },
+        ]);
+
         return res.json({ products });
       case "category":
         let { category: slug } = req.query;
@@ -435,11 +458,11 @@ export const getProduct = async (req, res) => {
           {
             $project: {
               _id: 1,
-              images: 1,
               product_title: 1,
+              brand: "$brand.brand_name",
               product_type: 1,
+              image: { $arrayElemAt: ["$images.url", 0] },
               price: 1,
-              "brand.brand_name": 1,
             },
           },
         ]);

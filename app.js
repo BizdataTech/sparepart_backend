@@ -12,6 +12,7 @@ import homeRouter from "./routers/homeRouter.js";
 import sectionRouter from "./routers/sectionRouter.js";
 import clientRouter from "./routers/clientRouter.js";
 import adminUserRouter from "./routers/adminUserRouter.js";
+import warehouseRouter from "./routers/warehouse.route.js";
 
 const app = express();
 const allowedURLs = [
@@ -48,5 +49,6 @@ app.use("/api", brandRouter);
 app.use("/api", homeRouter);
 app.use("/api", sectionRouter);
 app.use("/api", clientRouter);
+app.use("/api", warehouseRouter);
 
 export default app;
