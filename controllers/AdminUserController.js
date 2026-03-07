@@ -104,11 +104,15 @@ export const loginUser = async (req, res) => {
     const admin_user = await AdminUser.findOne({ email }).select(
       "email password",
     );
+
+    console.log("admin data:", admin_user);
     if (!admin_user) return res.status(401).json({ message: credential_error });
     let authenticated = await bcrypt.compare(password, admin_user.password);
+    console.log("authenticated:", authenticated);
     if (!authenticated)
       return res.status(401).json({ message: credential_error });
     let token = getAdminToken(admin_user._id);
+    console.log("login successfull");
     return res
       .cookie("admin_token", token, {
         sameSite: "lax",
