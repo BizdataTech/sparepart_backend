@@ -46,7 +46,7 @@ export const updateProduct = async (req, res) => {
 
     // Delete cancelled images from cloudinary
     if (data.cancelledIDs) {
-      data.cancelledIDs = JSON.parse(data.cancelledIDs);
+      data.cancelledIDs = JSON.parse(data.cancelledIDs || "[]");
       await Promise.all(
         data.cancelledIDs.map((public_id) =>
           cloudinary.uploader.destroy(public_id),
