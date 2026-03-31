@@ -3,6 +3,8 @@ import bcrypt from "bcrypt";
 import { getAdminToken } from "../utils/adminToken.js";
 import User from "../models/userModel.js";
 
+// Returns the currently logged-in admin's basic profile (username and email).
+// Uses req.adminId injected by the admin auth middleware to identify the caller.
 export const getAdmin = async (req, res) => {
   try {
     let user = await AdminUser.findOne({ _id: req.adminId }).select(
@@ -14,6 +16,10 @@ export const getAdmin = async (req, res) => {
   }
 };
 
+// Searches app (customer) users by username or email using a multi-word search.
+// Each word in the query is matched against both username and email with case-insensitive regex,
+// and all words must match ($and of $or conditions).
+// Returns users sorted newest-first with their blocked status included.
 export const getAppUsers = async (req, res) => {
   try {
     let search_words = req.query.search.split(/\s+/);
@@ -33,6 +39,9 @@ export const getAppUsers = async (req, res) => {
   }
 };
 
+// Toggles the blocked status of a specific user (block ↔ unblock).
+// Uses a MongoDB pipeline update with $not to flip the boolean field atomically,
+// avoiding a read-then-write pattern.
 export const toggleUserStat = async (req, res) => {
   try {
     await User.updateOne({ _id: req.params.id }, [
@@ -49,6 +58,8 @@ export const toggleUserStat = async (req, res) => {
   }
 };
 
+// Permanently deletes a customer user account by ID.
+// After deletion, also clears the user's auth cookie to invalidate any active session.
 export const deleteUser = async (req, res) => {
   try {
     await User.deleteOne({ _id: req.params.id });
@@ -65,6 +76,9 @@ export const deleteUser = async (req, res) => {
   }
 };
 
+// Registers a new admin account with a hashed password.
+// Validates that all fields are non-empty before proceeding.
+// On success, generates a JWT token and sets it as an httpOnly cookie.
 export const createUser = async (req, res) => {
   let data = req.body;
   let { username, password, email } = data;
@@ -95,6 +109,10 @@ export const createUser = async (req, res) => {
   }
 };
 
+// Authenticates an admin user with email and password.
+// Uses a generic error message for any credential mismatch to avoid leaking whether
+// the email exists. bcrypt.compare verifies the plaintext password against the stored hash.
+// On success, issues a signed JWT set in an httpOnly cookie.
 export const loginUser = async (req, res) => {
   try {
     let { email, password } = req.body;
@@ -127,6 +145,8 @@ export const loginUser = async (req, res) => {
   }
 };
 
+// Logs out the currently logged-in admin by clearing the admin_token cookie.
+// No DB operation needed — simply invalidating the cookie ends the session on the client side.
 export const logoutAdminUser = async (req, res) => {
   try {
     return res

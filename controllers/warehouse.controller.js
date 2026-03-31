@@ -4,8 +4,19 @@ import fs from "fs";
 import puppeteer from "puppeteer";
 import path from "path";
 
+// Generates and streams a warehouse product list PDF for a given order.
+// Steps:
+//   1. Fetch the order by ID using aggregation — unwinds items and joins product data
+//      so we have the product_title, part_number, and quantity for each line item.
+//   2. Read the HTML template from the filesystem (warehouse.productlist.html).
+//   3. Build an HTML table rows string by mapping each order item to a <tr> block.
+//   4. Inject the rows into the template by replacing the {{rows}} placeholder.
+//   5. Launch a headless Puppeteer browser, load the HTML, and render it to a PDF buffer.
+//   6. Send the PDF buffer as a downloadable attachment.
+// This is used in the admin/warehouse panel to print a pick list for warehouse staff.
 export const productListPDF = async (req, res) => {
   try {
+    // Join product details for each order item using aggregation
     let order = (
       await Order.aggregate([
         { $match: { _id: new mongoose.Types.ObjectId(req.params.id) } },
@@ -22,6 +33,7 @@ export const productListPDF = async (req, res) => {
           $unwind: "$product",
         },
         {
+          // Re-group to get the order's item list in a single document
           $group: {
             _id: "$_id",
             items: {
@@ -36,6 +48,7 @@ export const productListPDF = async (req, res) => {
       ])
     )[0];
 
+    // Load the HTML template from disk
     const htmlPath = path.join(
       process.cwd(),
       "./templates/warehouse.productlist.html",
@@ -43,6 +56,7 @@ export const productListPDF = async (req, res) => {
 
     let html = fs.readFileSync(htmlPath, "utf8");
 
+    // Build the table rows string by mapping each product to an HTML <tr>
     let table_rows = order.items
       .map(
         (item, i) =>
@@ -57,8 +71,10 @@ export const productListPDF = async (req, res) => {
       )
       .join("");
 
+    // Inject rows into the template by replacing the placeholder token
     html = html.replace("{{rows}}", table_rows);
 
+    // Use Puppeteer to render the filled HTML to a PDF buffer
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
@@ -70,6 +86,7 @@ export const productListPDF = async (req, res) => {
 
     await browser.close();
 
+    // Send the PDF as a downloadable file attachment
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",

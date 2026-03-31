@@ -1,6 +1,10 @@
 import Brand from "../models/brandModel.js";
 import cloudinary from "../utils/cloudinary.js";
 
+// Creates a new brand with a name and logo image.
+// Validates that both brand name and an image file are provided.
+// Uses Cloudinary's upload_stream with a callback — the brand record is only saved to
+// the DB after a successful upload confirmation from Cloudinary.
 export const createBrand = async (req, res) => {
   try {
     let { brand_name } = req.body;
@@ -10,6 +14,7 @@ export const createBrand = async (req, res) => {
       return res.status(400).json({ message: "Brand Name and Image required" });
     }
 
+    // Stream the image buffer to Cloudinary; on success, create the brand document
     const upload_data = await cloudinary.uploader.upload_stream(
       { folder: "brands" },
       async (error, result) => {
@@ -30,14 +35,21 @@ export const createBrand = async (req, res) => {
   }
 };
 
+// Updates a brand's name and/or logo image.
+// If a new image file is provided and a public_id exists, the old Cloudinary image is
+// deleted before uploading the new one to avoid orphaned files on Cloudinary.
+// The public_id field is stripped from the update payload before writing to the DB
+// since it is part of the image sub-document, not a top-level field.
 export const updateBrand = async (req, res) => {
   try {
     let data = req.body;
+    // If replacing the image, delete the old one from Cloudinary first
     if (req.file && data.public_id)
       await cloudinary.uploader.destroy(data.public_id);
 
     let imageData = {};
     if (req.file) {
+      // Upload the new image and get back the url and public_id
       const result = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { folder: "brands" },
@@ -55,6 +67,7 @@ export const updateBrand = async (req, res) => {
     }
 
     let updateData = { ...data };
+    // Remove public_id from the top-level update payload (it belongs inside image sub-document)
     delete updateData.public_id;
 
     if (req.file) updateData.image = imageData;
@@ -67,6 +80,8 @@ export const updateBrand = async (req, res) => {
   }
 };
 
+// Fetches all brands, filtered by a case-insensitive search on brand_name.
+// Returns results sorted newest-first. An empty search string returns all brands.
 export const getBrands = async (req, res) => {
   try {
     let query = req.query.search.trim();
@@ -79,6 +94,9 @@ export const getBrands = async (req, res) => {
   }
 };
 
+// Deletes a brand and its associated Cloudinary image.
+// First verifies the brand exists before attempting deletion.
+// The Cloudinary image is removed using the stored public_id to avoid orphaned assets.
 export const deleteBrand = async (req, res) => {
   try {
     let { id } = req.params;
@@ -87,6 +105,7 @@ export const deleteBrand = async (req, res) => {
       return res
         .status(422)
         .json({ message: "Failed : Couldn't find resourse." });
+    // Remove the image from Cloudinary before deleting the DB record
     await cloudinary.uploader.destroy(brand.image.public_id);
     await Brand.deleteOne({ _id: id });
     return res.json({ message: "Brand Deleted" });

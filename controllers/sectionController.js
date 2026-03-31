@@ -5,6 +5,8 @@ import { Banner, ProductListing, Section } from "../models/sectionModel.js";
 import cloudinary from "../utils/cloudinary.js";
 import uploadToCloudinary from "../utils/uploadToCloudinary.js";
 
+// Returns all homepage section documents (banners and product listings) for the admin panel.
+// Used to render the section management list.
 export const getSections = async (req, res) => {
   try {
     let sections = await Section.find();
@@ -15,12 +17,22 @@ export const getSections = async (req, res) => {
   }
 };
 
+// Resolves the live data for a specific section type, used before rendering
+// a section on the homepage. Behavior depends on `req.params.section_type`:
+//
+// - "banner": Returns a frontend route string (/category/slug or /product/id)
+//   that the banner should link to, resolved from the reference_id and data_source.
+//
+// - "product_listing": Returns actual product documents for a category-based
+//   product listing section, limited by the `limit` query param.
+//   Products are joined with brand data and projected for card display.
 export const getSectionData = async (req, res) => {
   try {
     let result = [];
     let { reference_id, data_source, limit } = req.query;
     switch (req.params.section_type) {
       case "banner":
+        // Resolve the banner's click destination based on what it references
         if (data_source === "category") {
           let category_match = await AutoCategory.findOne({
             _id: reference_id,
@@ -35,6 +47,7 @@ export const getSectionData = async (req, res) => {
         break;
       case "product_listing":
         if (data_source === "category") {
+          // Fetch products from the referenced category, join brand, and project card fields
           result = await AutoProduct.aggregate([
             {
               $match: {
@@ -61,7 +74,6 @@ export const getSectionData = async (req, res) => {
                 brand: "$brand.brand_name",
                 product_type: 1,
                 image: { $arrayElemAt: ["$images.url", 0] },
-
                 price: 1,
               },
             },
@@ -79,6 +91,10 @@ export const getSectionData = async (req, res) => {
   }
 };
 
+// Resolves the human-readable label for a section's reference (product or category),
+// used in the admin panel to display what a section is pointing to.
+// For a product reference: returns product_title and brand name.
+// For a category reference: returns the category title.
 export const getSectionReference = async (req, res) => {
   try {
     console.log("hey");
@@ -128,6 +144,14 @@ export const getSectionReference = async (req, res) => {
   }
 };
 
+// Creates a new homepage section. The section_type in req.body determines which
+// discriminator model is used (Banner or ProductListing).
+//
+// - "banner": Requires an image file. Uploads it to Cloudinary and stores
+//   the url and public_id alongside the section data.
+//
+// - "product_listing": Converts the form string "yes"/"no" for redirection to a boolean
+//   and renames `count` to `limit` before saving.
 export const createSection = async (req, res) => {
   try {
     const data = req.body;
@@ -138,6 +162,7 @@ export const createSection = async (req, res) => {
             .status(400)
             .json({ message: "Section creation failed : File missing" });
 
+        // Wrap cloudinary stream in a Promise so we can await it
         const uploadToCloudinary = (file) => {
           return new Promise((resolve, reject) => {
             let stream = cloudinary.uploader.upload_stream(
@@ -163,8 +188,10 @@ export const createSection = async (req, res) => {
         break;
       case "product_listing":
         console.log("product listing values:", data);
+        // Rename `count` to `limit` to match the schema field name
         data.limit = Number(data.count);
         delete data.count;
+        // Convert the string redirection flag to a proper boolean
         data.redirection = data.redirection === "yes" ? true : false;
         await ProductListing.create(data);
         break;
@@ -179,6 +206,13 @@ export const createSection = async (req, res) => {
   }
 };
 
+// Updates an existing section by ID.
+// Reads the section_type to determine which model (Banner or ProductListing) to update.
+//
+// - "banner": If a new image file is provided, the old Cloudinary image is deleted first,
+//   then the new image is uploaded and its url/public_id is injected into req.body before saving.
+//
+// - "product_listing": Updates with whatever fields are sent in req.body.
 export const updateSection = async (req, res) => {
   try {
     const section = await Section.findOne({ _id: req.params.id })
@@ -189,16 +223,19 @@ export const updateSection = async (req, res) => {
         .status(400)
         .json({ message: "Updation failed : Invalid section provided" });
 
+    // Select the correct discriminator model based on section_type
     let Model = section.section_type === "banner" ? Banner : ProductListing;
 
     switch (section.section_type) {
       case "banner":
         if (req.file) {
+          // Delete old image from Cloudinary before uploading the replacement
           await cloudinary.uploader.destroy(section.public_id);
           let { secure_url, public_id } = await uploadToCloudinary(
             req.file.buffer,
             "banner_images",
           );
+          // Inject new image fields into the update payload
           req.body.secure_url = secure_url;
           req.body.public_id = public_id;
         }
@@ -226,6 +263,9 @@ export const updateSection = async (req, res) => {
   }
 };
 
+// Deletes a section by ID using the appropriate discriminator model.
+// First verifies the section exists, then delegates deletion to Banner or ProductListing
+// based on section_type to ensure discriminator-level hooks run properly.
 export const deleteSection = async (req, res) => {
   let { id } = req.params;
   try {
@@ -253,12 +293,20 @@ export const deleteSection = async (req, res) => {
   }
 };
 
+// Handles dynamic search within the admin section reference picker.
+// Used when an admin selects a product or category to attach to a section.
+//
+// - "product": Searches by title, category name, brand name, and part number.
+//   Returns the first image alongside basic product info for the selection list.
+//
+// - "category": Case-insensitive title search, returns title and slug.
 export const getSearch = async (req, res) => {
   try {
     const { data_source } = req.params;
     let result = [];
     switch (data_source) {
       case "product":
+        // Multi-word search across product identifiers and relationships
         let product_query_condition = req.query.query
           .split(/\s+/)
           .map((word) => ({
@@ -294,6 +342,7 @@ export const getSearch = async (req, res) => {
             },
           },
           {
+            // Promote the first image to a top-level field for easy rendering
             $addFields: {
               image: { $arrayElemAt: ["$images", 0] },
             },

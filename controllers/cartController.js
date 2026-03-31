@@ -3,6 +3,9 @@ import AutoProduct from "../models/autoProductModel.js";
 import Cart from "../models/cartModel.js";
 import StockReservaton from "../models/reservationModel.js";
 
+// Checks whether a specific product is already in the current user's cart.
+// Returns a boolean `result` — used by the frontend to conditionally show
+// "Add to Cart" vs "Go to Cart" buttons.
 export const getData = async (req, res) => {
   try {
     let { id: productId } = req.params;
@@ -18,6 +21,11 @@ export const getData = async (req, res) => {
   }
 };
 
+// Fetches the user's full cart with product and brand details populated.
+// For each cart item, computes the real-time available_stock by subtracting
+// active reservation quantities from the product's total stock.
+// The displayed available stock is capped at 6 so the quantity selector
+// doesn't show unreasonably large numbers (business rule for UX).
 export const getCart = async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.userId }).populate({
@@ -27,9 +35,11 @@ export const getCart = async (req, res) => {
       },
     });
 
+    // For each item, calculate available stock by checking active reservations
     let items = await Promise.all(
       cart.items.map(async (item) => {
         let newItem = item.toObject();
+        // Aggregate total reserved quantity across all active reservations for this product
         let reserved_product_data = await StockReservaton.aggregate([
           {
             $match: {
@@ -47,6 +57,7 @@ export const getCart = async (req, res) => {
         let available_product_stock =
           item.productId.stock - (reserved_product_data[0]?.count || 0);
 
+        // Cap at 6 to limit the quantity selector options shown to the user
         if (available_product_stock <= 6)
           newItem.available_stock = available_product_stock;
         else newItem.available_stock = 6;
@@ -60,6 +71,11 @@ export const getCart = async (req, res) => {
   }
 };
 
+// Adds a product to the user's cart with a default quantity of 1.
+// Fetches the current product price at add-time, not at checkout,
+// so the cart total always reflects the price when the item was added.
+// If the user has no cart yet, creates a new cart document.
+// Otherwise, pushes the new item to the existing cart and recalculates cartTotal.
 export const addToCart = async (req, res) => {
   let { productId } = req.body;
   let quantity = 1;
@@ -80,6 +96,7 @@ export const addToCart = async (req, res) => {
     };
     let cart = await Cart.findOne({ userId: req.userId });
     if (!cart) {
+      // No cart exists yet — create one with this item as the first entry
       let new_cart = await Cart.create({
         userId: req.userId,
         items: [item],
@@ -91,6 +108,7 @@ export const addToCart = async (req, res) => {
       });
     }
 
+    // Cart already exists — append the item and update the running total
     cart.items.push(item);
     cart.cartTotal += totalAmount;
 
@@ -103,6 +121,10 @@ export const addToCart = async (req, res) => {
   }
 };
 
+// Updates the quantity of a specific cart item identified by its sub-document _id (req.params.id).
+// Uses a MongoDB pipeline update with $map to iterate over items and conditionally update
+// the matching one. cartTotal is then recalculated in a second $set stage by summing
+// all item totalAmounts, keeping the cart total always in sync.
 export const updateCartItem = async (req, res) => {
   try {
     await Cart.updateOne(
@@ -118,6 +140,7 @@ export const updateCartItem = async (req, res) => {
                 as: "item",
                 in: {
                   $cond: [
+                    // Find the matching item by its sub-document _id
                     { $eq: ["$$item._id", new Types.ObjectId(req.params.id)] },
                     {
                       $mergeObjects: [
@@ -125,6 +148,7 @@ export const updateCartItem = async (req, res) => {
                         {
                           quantity: req.body.quantity,
                           totalAmount: {
+                            // Recalculate item total using the stored price
                             $multiply: ["$$item.price", req.body.quantity],
                           },
                         },
@@ -138,6 +162,7 @@ export const updateCartItem = async (req, res) => {
           },
         },
         {
+          // Recalculate cart total by summing all item totalAmounts
           $set: {
             cartTotal: {
               $sum: {
@@ -160,6 +185,9 @@ export const updateCartItem = async (req, res) => {
   }
 };
 
+// Removes a single item from the cart using its sub-document _id (req.params.id).
+// Uses $filter in a pipeline update to exclude the matching item, then recalculates
+// cartTotal by summing the remaining items' totalAmounts in the same update.
 export const removeCartItem = async (req, res) => {
   try {
     await Cart.updateOne({ userId: req.userId }, [
@@ -169,12 +197,14 @@ export const removeCartItem = async (req, res) => {
             $filter: {
               input: "$items",
               as: "item",
+              // Keep all items except the one matching the target _id
               cond: { $ne: ["$$item._id", new Types.ObjectId(req.params.id)] },
             },
           },
         },
       },
       {
+        // Recalculate cart total after removing the item
         $set: {
           cartTotal: {
             $sum: {
@@ -195,6 +225,8 @@ export const removeCartItem = async (req, res) => {
   }
 };
 
+// Completely removes the user's cart document from the database.
+// Called after a successful checkout to start fresh for the next order.
 export const clearCart = async (req, res) => {
   try {
     await Cart.deleteOne({ userId: req.userId });

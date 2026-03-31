@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import config from "../config.js";
 
 const verifyUser = (req, res, next) => {
   let token = req.cookies?.token;
@@ -10,7 +9,7 @@ const verifyUser = (req, res, next) => {
         message: "No token found. Authentication failed!",
       });
     }
-    const payload = jwt.verify(token, config.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = payload.userId;
     next();
   } catch (error) {
